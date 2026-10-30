@@ -1,0 +1,253 @@
+﻿/*
+  ============================================================
+  文件导读 | web/style.css —— 手写样式表（85 行，无预处理器、无构建）
+  ============================================================
+  角色：给 app.js 用模板字符串拼出来的 HTML 提供全部外观。没有 CSS 变量
+    之外的主题系统，也没有 utility 框架，只有一批按页面结构命名的原子类。
+  与后端的关系：本文件与前端逻辑完全解耦，只被 index.html 用绝对路径
+    /style.css 引入（server.py 静态路由读盘返回）。它不认识任何业务字段，
+    唯一与业务耦合的地方是 .chip 的色彩修饰类（warm/red/blue/gray），
+    由 app.js 的 chip(text, cls) 传入。
+  核心结构（按出现顺序）：
+    1) :root 色板 → 基础重置（*、body、a、button、表单控件）
+    2) header.top 顶栏 → main 1180px 容器 → 标题排版
+    3) 布局原子类：.row/.between/.grid/.card/.list/.item/.table-wrap
+    4) 组件类：.chips/.chip、.tabs、.form-grid、.hero、.empty、.toolbar、
+       .split/.side、.steps、dialog、.toast、.badge、footer
+    5) 第一组响应式断点（800px）
+    6) 后加的第二屏样式：上传拖拽区、spinner、宽弹窗、简报双列、引用、
+       时间线、标签选择器、预览、检查项、第二组断点、min-width 兜底
+  关键设计取舍：墨绿主题只用 11 个变量表达，换主题只改 :root；布局用
+    flex/grid 而非 float，所以 .split 与 .side 能靠 position:sticky 做出
+    "左内容右粘性侧栏"；表格统一外包 .table-wrap 换取横向滚动。
+  常见坑：本文件末尾存在同名规则重复定义（第 83 行同时出现
+    .view-dialog{max-width:1100px} 与 dialog{max-height:90vh;overflow:auto}）。
+    这是真实的覆盖顺序，不是笔误：类选择器 .view-dialog 覆盖第 60 行
+    dialog 的 max-width:760px，让宽弹窗真的变宽；而 max-height 因为
+    .view-dialog 在第 73 行已经写过 92vh（类 > 元素，更具体），仍保持 92vh。
+    删掉任何一条都会改变弹窗宽度，请勿"清理重复"。
+  要改 X 动哪里：换主题色 → 只改 :root 变量；改密度 → main 的 padding
+    与 .card 的 padding；改断点 → 第 66 行与第 84 行两处必须同时改；
+    新增页面区块 → 优先复用 .card/.item/.chips 而不是新造类名。
+  阅读顺序：:root → body/main → .card/.item → .split/.side → .table-wrap
+    → dialog/.toast → 断点 → 末尾的简报与检查项样式。
+  ============================================================
+*/
+:root{
+/* 色板：墨绿主色（--green/--green2）+ 米白底（--bg）+ 暖黄（--warm）
+   用于"待补充/待核对"、砖红（--red）用于"客户额外要求/错误"、
+   蓝灰（--blue）用于"关联后续/上市分层"等中性标记。
+   app.js 不会动态改这些变量，改色只需要动这里。 */
+  --ink:#203a34;--muted:#6e7d76;--green:#26634e;--green2:#347a5e;--pale:#eef4ec;
+  --bg:#f5f7f2;--card:#fff;--line:#dde6dd;--warm:#fbf2de;--red:#a24e42;--blue:#3e5f7e;
+}
+/* 全局 box-sizing：让 .card 的 padding 与 border 计入宽度，
+   否则 grid 里的卡片会被撑破。 */
+*{box-sizing:border-box}
+/* 正文字体栈优先 Segoe UI（Windows 英文）再 Microsoft YaHei（中文），
+   行高 1.65 便于中文长段落阅读；背景用浅米白而不是纯白，降低刺眼感。 */
+body{margin:0;font:14px/1.65 "Segoe UI","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg)}
+/* 链接只用主色，不放大；悬停才加下划线，避免资料列表里满屏下划线。 */
+a{color:var(--green);text-decoration:none}a:hover{text-decoration:underline}
+/* 按钮基础样式：白底细边圆角，与表单控件保持同一视觉语言；
+   app.js 的 button() 生成器不写内联样式，全部靠这里与下面的修饰类。 */
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:7px 12px;cursor:pointer}
+button:hover{background:var(--pale)}button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+button.primary:hover{background:var(--green2)}button.ghost{background:transparent}
+button.danger{color:var(--red);border-color:#e5c8c1}
+/* 表单控件默认宽度 100%：因为 .field 是块级 label，宽度交给栅格控制；
+   checkbox / range 在下面第 75 行用 width:auto 单独覆盖回来。 */
+input,select,textarea{font:inherit;color:var(--ink);border:1px solid #c7d6ca;border-radius:7px;padding:8px 10px;background:#fff;width:100%}
+textarea{min-height:100px;resize:vertical}
+/* 顶栏：sticky + z-index:5，保证滚动时始终能点"项目列表/新建项目"；
+   z-index 必须低于 .toast(20) 与 dialog，否则提示会被顶栏压住。 */
+header.top{position:sticky;top:0;z-index:5;background:#1f493d;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header.top .brand{font-size:18px;font-weight:700;letter-spacing:.3px}
+header.top .sub{font-size:12px;opacity:.72;margin-left:8px}
+header.top .actions{display:flex;gap:8px;align-items:center}
+header.top button{background:transparent;color:#fff;border-color:#5d7d70}
+header.top button:hover{background:#2c5a4b}
+/* 主容器：1180px 上限 + 左右 20px 内边距 + 底部 50px 留白。
+   所有页面（列表页/项目页/子项目页）共用这一个容器，
+   .split 的两栏也在这个 1180px 之内分配 2fr/1fr。 */
+main{max-width:1180px;margin:0 auto;padding:22px 20px 50px}
+h1{font-size:26px;margin:0 0 6px}h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:0 0 10px}
+/* 文本修饰原子类：.muted 次要色、.small 12px、.mono 等宽字体（内部编号）。 */
+.muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:Consolas,monospace;font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+/* 卡片：所有信息区块的统一容器（白底、1px 边、10px 圆角、下外边距 14px）；
+   .card.flat 是紧凑变体，用于弹窗内的分组。 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.card.flat{padding:12px}
+/* 项目/子项目卡片：整张卡可点（由 app.js 的 data-action 委托实现），
+   所以给 cursor:pointer 与 hover 抬升，提示"这是一张可点的卡"。 */
+.project-card{cursor:pointer;transition:.15s}.project-card:hover{border-color:#91b09c;box-shadow:0 4px 16px #223c2a12}
+.project-card h3{margin:0 0 4px}.project-card .meta{font-size:12px;color:var(--muted)}
+/* .chips 是标签的横排容器，.chip 是单个小标签（状态、类型、品类）；
+   app.js 的 chip(text, cls) 会输出 <span class="chip 修饰类">。 */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{display:inline-block;background:var(--pale);border-radius:5px;padding:2px 7px;font-size:12px}
+.chip.warm{background:var(--warm);color:#7c5d1e}.chip.red{background:#f7e6df;color:#7d3d30}
+.chip.blue{background:#e9f0f7;color:#3e5f7e}.chip.gray{background:#f0f1ed;color:#6d746c}
+/* 页签：只有下边框 2px 表示选中，按钮本身去边框去背景，
+   视觉上像文字页签；.active 由 app.js 按 state.tab 切换。 */
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:12px 0 16px}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:9px 12px;color:var(--muted)}
+.tabs button.active{border-bottom-color:var(--green);color:var(--green);font-weight:600}
+.tabs button:hover{background:transparent;color:var(--green)}
+.list{display:grid;gap:8px}
+.item{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff}
+.item h3{margin:0 0 4px;font-size:15px}
+/* 表格容器：overflow:auto 是横向滚动的唯一来源。
+   候选表列很多（9 列），窄屏必须靠这里滚动，不能靠 body 滚动。 */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:8px 9px;border-bottom:1px solid #edf1eb;text-align:left;vertical-align:top}
+/* 表头不换行（内部编号/列名短），单元格顶部对齐（多行内容更整齐）。 */
+th{background:#f0f5ee;color:#5d7468;font-weight:600;white-space:nowrap}
+tr:hover td{background:#fafcf8}
+/* 总分用主色加粗，让"计分"这一列在候选表里一眼可见。 */
+.score{font-weight:700;color:var(--green)}
+/* 表单栅格：默认两列，.full 占满两列（长文本域、需要整行的字段）。 */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid .full{grid-column:1/-1}
+label.field{display:block;font-size:12px;color:var(--muted)}
+label.field input,label.field select,label.field textarea{margin-top:3px}
+/* hero：项目页 / 子项目页顶部的大信息块，浅绿渐变，
+   里面放标题、按钮行、状态 chips 和生成按钮。 */
+.hero{background:linear-gradient(135deg,#eef5e9,#f8faf3);border:1px solid #dbe8d5;border-radius:12px;padding:18px;margin-bottom:16px}
+.hero h1{font-size:22px}
+.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed #cfdccf;border-radius:8px;background:#fbfcf8}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+/* 两栏布局：正文 2fr + 侧栏 1fr，align-items:start 让右栏不被拉高。
+   800px 以下降为单列（见第 66 行断点）。 */
+.split{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
+/* 侧栏粘性：滚动长页面时"进展与终点/检查项/样品"始终可见；
+   top:80px 是顶栏高度 + 间距；第 83 行还给它加了 max-height 与内部滚动。 */
+.side{position:sticky;top:80px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.step{padding:4px 9px;border-radius:999px;background:#e9eee7;color:#64756b;font-size:12px}
+.step.done{background:#dcebd5;color:#2f5d3d}.step.now{background:var(--green);color:#fff}
+textarea.json{font-family:Consolas,monospace;font-size:12px;min-height:280px}
+/* 通用弹窗：默认最大宽 760px（新建项目用），圆角与内边距统一；
+   宽弹窗由 .view-dialog 在第 73/83 行覆盖宽度。 */
+dialog{border:1px solid var(--line);border-radius:12px;max-width:760px;width:94vw;padding:20px;color:var(--ink)}
+/* 遮罩：半透明墨绿，比纯黑柔和；颜色带 66 十六进制透明度。 */
+dialog::backdrop{background:#17392f66}
+/* toast：右下角固定，默认 opacity:0 + pointer-events:none（不挡点击），
+   由 .show 切到 opacity:1；app.js 的 toast() 用 setTimeout 自动收起。 */
+.toast{position:fixed;right:20px;bottom:20px;background:#1f493d;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;max-width:420px;z-index:20}
+.toast.show{opacity:1}
+.badge{display:inline-block;border-radius:999px;padding:1px 7px;font-size:11px;background:var(--pale);color:#41604e}
+footer{padding:20px;text-align:center;color:#8a968c;font-size:11px}
+/* 第一个响应式断点（800px）：两栏变单栏、侧栏取消粘性、
+   表单变单列、主容器收紧内边距。改动时与第 84 行的第二个断点保持一致。 */
+@media(max-width:800px){.split{grid-template-columns:1fr}.side{position:static}.form-grid{grid-template-columns:1fr}main{padding:14px}}
+
+/* 上传拖拽区：虚线边框表示"可投放"；.over 由 app.js 的
+   dragover / dragleave 事件切换，给出绿色高亮反馈。 */
+.dropzone{border:1px dashed #b9cdb8;border-radius:9px;padding:14px;background:#fbfdf8;transition:.15s}
+.dropzone.over{background:#e8f3e2;border-color:var(--green)}
+/* spinner：12px 圆环 + 1px 顶部色差 + 0.8s 线性旋转，
+   用于"理解中/正在解析"的即时反馈；app.js 的 generationStatus() 会用它。 */
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid #cfe0d0;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 宽弹窗（资料预览、简报编辑、候选详情）：94vw 保证小屏不溢出，
+   max-height:92vh 让内部 .view-text 自己滚动而不是整页滚动。 */
+.view-dialog{width:min(980px,94vw);max-height:92vh;overflow:auto}
+.view-text{white-space:pre-wrap;max-height:45vh;overflow:auto;background:#f7f9f4;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;line-height:1.6}
+/* 禁用态降到 50% 透明——app.js 在事件委托里把执行中的按钮置 disabled，
+   这就是防重复提交的视觉反馈；checkbox/range 单独恢复 width:auto。 */
+button:disabled{opacity:.5;cursor:default}input[type=checkbox]{width:auto;accent-color:var(--green)}input[type=range]{padding:0;accent-color:var(--green)}
+/* .check 是"复选框 + 文字"的行内组合；.pre 保留换行（简报/工单正文）；
+   .error 用砖红色表示失败或校验拦截。 */
+.check{display:inline-flex;gap:7px;align-items:center}.pre{white-space:pre-wrap;overflow-wrap:anywhere}.error{color:var(--red)}
+/* 简报的双列定义列表：外层 dl 用 grid 两列，每个字段是 dl>div（dt 字段名、
+   dd 值），这样长文本也在自己的格子里换行，不会串列。 */
+.brief-section{margin:18px 0}.brief-section dl{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}.brief-section dl>div{border-bottom:1px solid var(--line);padding:7px 0}.brief-section dt{font-size:12px;color:var(--muted)}.brief-section dd{margin:2px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+/* 引用卡片：左侧 2px 绿线 + blockquote 灰字，表示"这是原文摘录"；
+   里面的按钮是 app.js 的 refsHTML() 生成的"查看来源/原件"入口。 */
+.citation{border-left:2px solid #bed5c0;padding-left:10px;margin:8px 0}.citation button{font-size:12px;padding:2px 6px}blockquote{margin:6px 0;color:var(--muted);white-space:pre-wrap}
+/* 时间线用左边框制造纵轴；.note 是暖黄底提示块（待确认、编辑说明）。 */
+.timeline{margin:14px 0;border-left:2px solid var(--line);padding-left:16px}.note{padding:12px;background:var(--warm);border-radius:8px}
+/* 标签选择器：55vh 内部滚动 + gap 7px；[hidden] 用 !important 覆盖 grid，
+   否则搜索过滤 row.hidden=true 时 grid 仍会占位（这是易踩的坑）。 */
+.picker-list{display:grid;gap:7px;max-height:55vh;overflow:auto}.picker-list [hidden]{display:none!important}.picker-list label{justify-content:flex-start}
+/* 图片预览自适应弹窗宽度；iframe 用于 PDF 原件预览，高度 55vh。 */
+.preview{display:block;max-height:55vh;max-width:100%;margin:auto}.view-dialog iframe{width:100%;height:55vh;border:1px solid var(--line)}.source-text{min-height:250px}
+/* 检查项：默认只有上分隔线；.customer-check 用暖橙底 + 砖红左边线，
+   专门标记"客户额外要求"，与系统默认检查项在视觉上区分开。 */
+.check-item{border-top:1px solid var(--line);padding:12px 0}.customer-check{background:#fff6ef;border-left:2px solid var(--red);padding-left:10px}.upload-label{display:block;margin-top:10px}.upload-label input{font-size:12px}
+/* ===== 注意：这一行是后加的覆盖层，不是重复代码 =====
+   1) .view-dialog{max-width:1100px} 覆盖第 60 行 dialog 的 max-width:760px
+      （类选择器优先于元素选择器），宽弹窗因此真的能到 1100px；
+   2) dialog{max-height:90vh;overflow:auto} 给普通弹窗（#newDialog）加高度
+      上限；.view-dialog 在第 73 行的 92vh 更具体，宽弹窗仍用 92vh；
+   3) .side 的 max-height 与 overflow 让粘性侧栏内容超长时自己滚动；
+   4) 末尾的 :focus-visible 焦点环是键盘可访问性的唯一来源。
+   改弹窗尺寸时请两条一起看，删掉任一都会改变实际宽度。 */
+summary{cursor:pointer;color:var(--green);padding:5px 0}details>p{margin:6px 0}td .chip{white-space:nowrap}td details{min-width:180px}.side{max-height:calc(100vh - 100px);overflow:auto}.view-dialog{max-width:1100px}dialog{max-height:90vh;overflow:auto}dialog h3{margin-top:18px}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+/* 第二个断点（800px）：简报双列降单列、侧栏取消高度限制、
+   顶栏副标题在小屏隐藏。与第 66 行的断点必须同时维护。 */
+@media(max-width:800px){.brief-section dl{grid-template-columns:1fr}.side{max-height:none}header.top .sub{display:none}}
+/* 兜底：.split 的子项与 .grid 的子项允许收缩到 0，否则长内部编号
+   （white-space:nowrap 的表格内容）会把两栏布局撑破；
+   最后一行给键盘焦点卡片补焦点环。 */
+.split>div,.grid>*{min-width:0}.project-card:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ==========================================================================
+   演示版附加样式：叠角（继承）、气泡说明、演示态按钮
+   ========================================================================== */
+.top .demo-tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
+  background:#f6ecd9;color:#7d5a23;font-size:11px;font-weight:600;letter-spacing:.02em}
+.top .hint-btn{margin-left:6px;border-color:#5d7d70}
+
+/* 叠角：后建的子项目盖住原项，原项只露一条边 */
+.stack{position:relative;padding:24px 0 0 0}
+.stack .under{position:absolute;z-index:1;left:24px;right:0;top:0;height:54px;
+  background:#f2efe6;border:1px dashed #d7d1c3;border-radius:10px 10px 4px 4px;
+  padding:6px 14px;cursor:pointer;overflow:hidden}
+.stack .under:hover{background:#efeade}
+.stack .under .line{display:flex;align-items:center;gap:6px;font-size:11px;color:#7b8378;white-space:nowrap;overflow:hidden}
+.stack .under .line b{color:#4c5a52;font-weight:600;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.stack .under .corner{position:absolute;right:10px;top:5px;font-size:10px;color:#a8b0a6;letter-spacing:.04em}
+.stack .child{position:relative;z-index:2;margin-top:0}
+.stack .chain{position:absolute;left:6px;top:30px;bottom:6px;width:2px;background:#e6dfd0;z-index:0}
+.stack .chain::after{content:"";position:absolute;left:-3px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:#d9d2c1}
+
+/* 气泡说明 */
+.hint{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;
+  border:1px solid #cbd6ca;background:#fff;color:#6e7d76;font-size:10.5px;line-height:1;cursor:pointer;
+  margin-left:6px;vertical-align:1px;position:relative;flex:0 0 auto}
+.hint:hover{background:#eef4ec;color:#26634e;border-color:#a9c1b0}
+.hint::after{content:attr(data-tip);position:absolute;left:50%;bottom:130%;transform:translateX(-50%) scale(.96);
+  background:#1f493d;color:#fff;font-size:11.5px;line-height:1.6;padding:7px 10px;border-radius:7px;width:max-content;
+  max-width:260px;white-space:normal;text-align:left;opacity:0;pointer-events:none;transition:.15s;z-index:30;
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.4)}
+.hint:hover::after,.hint.on::after{opacity:1;transform:translateX(-50%) scale(1)}
+.sec-title{display:flex;align-items:center;gap:4px}
+
+/* 禁用态与提示 */
+button[disabled]{opacity:.45;cursor:not-allowed}
+.demo-off{position:relative}
+.demo-off::before{content:"演示版不调用模型";position:absolute;right:0;top:-22px;font-size:10.5px;color:#9aa39a;white-space:nowrap}
+
+/* 候选表紧凑一点 */
+.table.compact td{padding:8px 9px}
+.table.compact th{padding:8px 9px}
+tr.picked td{background:#f0f7ef}
+.scorebar{display:inline-flex;height:5px;width:70px;border-radius:3px;overflow:hidden;background:#eceef0;vertical-align:middle}
+.scorebar i{display:block;height:100%}
+.scorebar .sa{background:#26634e}.scorebar .sb{background:#4f8f70}
+.scorebar .sc{background:#c08a3e}.scorebar .sm{background:#46617f}
+
+/* 资料卡 */
+.art-row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.art-meta{font-size:11.5px;color:#8a968c;font-family:Consolas,monospace}
+.tag-mini{font-family:Consolas,monospace;font-size:10.5px;background:#f0f5ee;color:#5d7468;padding:1px 6px;border-radius:4px}
+.textbox{background:#fbfcf8;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;
+  line-height:1.85;white-space:pre-wrap;max-height:320px;overflow:auto}
+.navcrumb{font-size:12px;color:#8a968c;margin-bottom:8px}
+.navcrumb a{border:0}
