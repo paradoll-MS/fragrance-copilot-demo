@@ -75,19 +75,19 @@ function renderTags() {
       <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px">
         <div class="card flat" style="border-left:3px solid #26634e">
           <div class="chips">${chip('A · 主体气味', 'green')}${chip(num(aCov) + ' 支有标注', 'line')}</div>
-          <h3 style="margin:8px 0 4px">主体气味</h3>
+          <h3 style="margin:8px 0 4px">从具体气味到调式</h3>
           <p class="small muted" style="margin:0">三个层级：A1 具体气味对象 → A2 香族/韵调 → A3 复合香调。
             客户三调里的香材只有"另有明确气味目标"时才能升级为 A。</p>
         </div>
         <div class="card flat" style="border-left:3px solid #4f6b7d">
           <div class="chips">${chip('B · 感受与风格')}${chip(num(bCov) + ' 支有标注', 'line')}</div>
-          <h3 style="margin:8px 0 4px">感受与风格</h3>
+          <h3 style="margin:8px 0 4px">11 组感受维度</h3>
           <p class="small muted" style="margin:0">11 组感受维度：光影、温度体感、质地、真实度、洁净、情绪、人格、熟悉度、季节、人群、通感。
             参考三调可以辅助推断 B。</p>
         </div>
         <div class="card flat" style="border-left:3px solid #a97b3f">
           <div class="chips">${chip('C · 定位与场景', 'gold')}${chip(num(cCov) + ' 支有标注', 'line')}</div>
-          <h3 style="margin:8px 0 4px">定位与场景</h3>
+          <h3 style="margin:8px 0 4px">四个维度 × 12 个品类</h3>
           <p class="small muted" style="margin:0">四个维度 × 12 个内部品类：核心定位、香型香调、场景风格、感知情绪。
             C 只能取"当前品类"下的节点，跨品类会被剔除。</p>
         </div>
@@ -95,7 +95,7 @@ function renderTags() {
     </div>
 
     <div class="card">
-      <h2>三层结构：每一层回答什么问题</h2>
+      <h2>层级结构</h2>
       <div class="table-wrap"><table class="table compact">
         <thead><tr><th style="width:70px">层级</th><th style="width:140px">管什么</th><th style="width:70px">数量</th><th>典型标签</th><th style="width:300px">判定要点</th></tr></thead>
         <tbody>
